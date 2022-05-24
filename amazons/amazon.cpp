@@ -1,6 +1,9 @@
 // Nathan Karr
 // Honors Research
 // Game of Amazons
+/*
+   This file handles anything relating to the game board such as: making a move, determining a winner, reseting a board, changing turns, updating board, etc.
+*/
 #include "amazon.h"
 #include "neural.h"
 #include <iostream>
@@ -17,6 +20,7 @@
 #include <float.h>
 using namespace std;
 
+// Resets board back to default settings, default settings handled in main
 void Game::resetBoard(){
    // Change to accept any size
    for (int i = 0; i < size; i++){
@@ -43,6 +47,7 @@ void Game::resetBoard(){
       }
    }
 }
+// Changes turn from one player to the other
 void Game::changeTurn(){
    if(playerOneTurn){
       playerOneTurn = false;
@@ -51,6 +56,7 @@ void Game::changeTurn(){
       playerOneTurn = true;
    }
 }
+// Checks if player one's turn, if false, is player two's turn
 bool Game::isPlayerOneTurn(){
    if(playerOneTurn){
       return true;
@@ -59,6 +65,7 @@ bool Game::isPlayerOneTurn(){
       return false;
    }      
 }
+// Outputs current board to console
 void Game::printBoard(){
    n = 0;
    for (int i = 0; i < size; i++){
@@ -88,10 +95,12 @@ void Game::printBoard(){
    }
    cout << endl;
 }
+// Places a 'block' on the board
 void Game::shootBlock(int blockRow, int blockCol){
    board[blockRow][blockCol] = "1";
    numBlocks += 1;
 }
+// Moves given piece to new location (move is checked to be legal beforehand, could improve by having that check be made here)
 void Game::makeMove(string piece, int moveRow, int moveCol){
    if(piece == "B1"){
       board[blackRows.at(0)][blackCols.at(0)] = "0";
@@ -118,6 +127,7 @@ void Game::makeMove(string piece, int moveRow, int moveCol){
       redCols.at(1) = moveCol;
    }
 }
+// Returns the board position of given piece
 string Game::getPieceLocation(string piece){
    string pieceLocale;
    if(piece == "B1"){
@@ -134,7 +144,7 @@ string Game::getPieceLocation(string piece){
    }
    return pieceLocale;
 }
-
+// Checks if given move is legal
 bool Game::isValidMove(int pieceRow, int pieceCol, int moveRow, int moveCol){
    if(pieceRow == moveRow && pieceCol == moveCol){ // Checks if player tried to move the piece to where it already is
       return false;
@@ -230,6 +240,8 @@ bool Game::isValidMove(int pieceRow, int pieceCol, int moveRow, int moveCol){
    }
    return false;
 }
+// Checks the board to see if either player has won
+// Player has lost if his piece has no valid moves
 int Game::checkWin(){
    if(!checkPiece(blackRows[0], blackCols[0]) && !checkPiece(redRows[0], redCols[0])){
       if(playerOneTurn){
@@ -247,7 +259,8 @@ int Game::checkWin(){
    }
    return 0;
 }
-bool Game::checkPiece(int row, int col){ // Checks given piece to see if it has any valid moves
+// Checks given piece to see if it has any valid moves
+bool Game::checkPiece(int row, int col){ 
    bool rowLess = false;
    bool colLess = false;
    bool rowGreat = false;
@@ -299,6 +312,7 @@ bool Game::checkPiece(int row, int col){ // Checks given piece to see if it has 
    }
    return false;
 }
+// Puts all valid moves on a stack, used by minimax to loop through all possible moves to make comparisons
 vector<string> Game::stackValidMoves(int row, int col){
    bool rowLess = false;
    bool colLess = false;
@@ -443,6 +457,7 @@ vector<string> Game::stackValidMoves(int row, int col){
    }
    return possibleMoves;
 }
+// Stacks valid moves that are only a king move away, used to make an input into the neural network
 vector<string> Game::stackValidMovesOneAway(int row, int col){
    bool rowLess = false;
    bool colLess = false;
@@ -520,6 +535,7 @@ vector<string> Game::stackValidMovesOneAway(int row, int col){
    }
    return possibleMoves;
 }
+// Old minimax, knew it worked so it was left here incase the current one broke and needed comparisons for bug fixing
 /*
 double miniMaxValue(Game game, int depth, const Network &neuralNet){ // Recursive part of minimax
    string bestMove;
@@ -593,7 +609,7 @@ double miniMaxValue(Game game, int depth, const Network &neuralNet){ // Recursiv
    return bestOutcome;
 }
 */
-
+// Minimax, goes through every possible move for each player, stopping at given depth, uses alpha beta pruning
 double miniMaxValue(Game game, int depth, const Network &neuralNet, double alpha, double beta){ // Recursive part of minimax
    string bestMove;
    string pieceLocale;
@@ -605,8 +621,6 @@ double miniMaxValue(Game game, int depth, const Network &neuralNet, double alpha
    double evaluation;
    double outcome;
    bool breakLoop = false;
-   // Currently unsure if anything in my minimax needs to be different for player one vs two or if thats all handled by the unwritten eval function, also unsure where the eval function is called
-   // an example I saw online called it where my outcome check is
    if(game.checkWin() == 2){
       return -1;
       //return -1.0;
@@ -618,11 +632,10 @@ double miniMaxValue(Game game, int depth, const Network &neuralNet, double alpha
    if(depth == 0){
       evaluation = buildInputAndEvaluate(game, neuralNet);
       return evaluation;
-      // return ???, I know this should end the recursive loop but I'm unsure what it should return once I've checked the end of my depth of board states
    }
    game.changeTurn();
    if(game.isPlayerOneTurn()){ // Player One eval
-      piece = "B1"; // MUST CHANGE THIS LINE WHEN BOARD IS EXPANDED
+      piece = "B1"; // MUST CHANGE THIS LINE IF BOARD IS EXPANDED
       pieceLocale = game.getPieceLocation(piece);
       outcome = INT_MIN;
       moves = game.stackValidMoves(pieceLocale.at(0) - '0', pieceLocale.at(1) - '0'); // Returns a vector of ints, ints are 2 digits and represent moves, for example 43 would be row 4 col 3
@@ -650,7 +663,7 @@ double miniMaxValue(Game game, int depth, const Network &neuralNet, double alpha
       }
    }
    else{ // Player two eval
-      piece = "R1"; // MUST CHANGE THIS LINE WHEN BOARD IS EXPANED
+      piece = "R1"; // MUST CHANGE THIS LINE IF BOARD IS EXPANED
       pieceLocale = game.getPieceLocation(piece);
       outcome = INT_MAX;
       moves = game.stackValidMoves(pieceLocale.at(0) - '0', pieceLocale.at(1) - '0'); // Returns a vector of ints, ints are 2 digits and represent moves, for example 43 would be row 4 col 3
@@ -680,8 +693,8 @@ double miniMaxValue(Game game, int depth, const Network &neuralNet, double alpha
    }
    return outcome;
 }
-
-string agentMinimax (Game game, const Network &neuralNet){ // Minimax agent
+// Minimax agent
+string agentMinimax (Game game, const Network &neuralNet){ 
    // Select piece R1
    // Give move, if valid move, make it, and give block move, if also valid, recurse, then setup evaluate
    // Repeat for R2
@@ -736,7 +749,7 @@ string agentMinimax (Game game, const Network &neuralNet){ // Minimax agent
    */
    return bestMove; // Currently returns 0 just so make doesn't yell
 }
-
+// First agent created, just makes a random legal move
 string agentRandom(Game game, const Network &neuralNet){
    int randSize;
    string move;
@@ -781,6 +794,7 @@ string agentRandom(Game game, const Network &neuralNet){
    moveString = selectedPiece + move + block;
    return moveString;
 }
+// Agent that allows human to play the game against AI
 string playerAgent(Game game, const Network &neuralNet){
    string player_move;
    string piece;
@@ -840,6 +854,7 @@ string playerAgent(Game game, const Network &neuralNet){
    moveString = piece + player_move + blockSpot;
    return moveString;
 }
+// Use this when you want game to be outputted to the console
 int playAVisualGame(string (*blackAgent)(Game game, const Network &neuralNet), string (*redAgent)(Game game, const Network &neuralNet), const Network &blackNeuralNet, const Network &redNeuralNet, int boardSize){
    //int size;
    //cout << "Set board size: ";
@@ -889,7 +904,7 @@ int playAVisualGame(string (*blackAgent)(Game game, const Network &neuralNet), s
    }
    return 0;
 }
-
+// Plays a game, used by the ai without outputting to console
 int playAGame(string (*blackAgent)(Game game, const Network &neuralNet), string (*redAgent)(Game game, const Network &neuralNet), const Network &blackNeuralNet, const Network &redNeuralNet, int boardSize){
    //int size;
    //cout << "Set board size: ";
@@ -936,7 +951,7 @@ int playAGame(string (*blackAgent)(Game game, const Network &neuralNet), string 
       game.changeTurn();
    }
 }
-
+// Main function, handles all the settings and the console outputs
 int main(){
    srandom (time(0));
    // https://www.delftstack.com/howto/cpp/how-to-generate-random-doubles-cpp/
@@ -1002,7 +1017,7 @@ int main(){
    //result = playAGame(&agentMinimax, &agentMinimax, blackNeuralNet, redNeuralNet, 4);
    //cout << "One game played" << endl;
 }
-
+// Example code given by professor showing basic minimax layout
 /*
    int barValue(const ChocolateBar &bar, int depth)
 {
